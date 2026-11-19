@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linktomp3"
-version = "1.0.0"
+version = "1.1.0"
 description = "Muuntaa YouTube-linkit ladattaviksi mp3-tiedostoiksi"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,4 +21,4 @@ linktomp3-web = "linktomp3.web:main"
 packages = ["linktomp3"]
 
 [tool.setuptools.package-data]
-linktomp3 = ["templates/*.html"]
+linktomp3 = ["templates/*", "static/*"]

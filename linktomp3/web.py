@@ -17,9 +17,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from flask import Flask, abort, jsonify, render_template, request, send_file
+from flask import (Flask, abort, jsonify, redirect, render_template, request, send_file,
+                   url_for)
 
-from .core import ALLOWED_BITRATES, DEFAULT_BITRATE, ConversionError, download_mp3, is_youtube_url
+from .core import (ALLOWED_BITRATES, DEFAULT_BITRATE, ConversionError, download_mp3,
+                   extract_youtube_url, is_youtube_url)
 
 MAX_DURATION = int(os.environ.get("LINKTOMP3_MAX_DURATION", 3 * 60 * 60))  # sekuntia
 JOB_TTL = int(os.environ.get("LINKTOMP3_JOB_TTL", 30 * 60))  # valmiit tiedostot poistetaan
@@ -92,6 +94,34 @@ def create_app() -> Flask:
     @app.get("/")
     def index():
         return render_template("index.html", bitrates=ALLOWED_BITRATES, default=DEFAULT_BITRATE)
+
+    # --- Asennettava sovellus (PWA) ja Androidin jakotoiminto -------------
+
+    @app.get("/manifest.webmanifest")
+    def manifest():
+        res = app.response_class(render_template("manifest.webmanifest"),
+                                 mimetype="application/manifest+json")
+        return res
+
+    @app.get("/sw.js")
+    def service_worker():
+        # Juuresta tarjoiltuna service workerin vaikutusalue kattaa koko sovelluksen.
+        res = send_file(Path(app.static_folder) / "sw.js", mimetype="text/javascript")
+        res.headers["Cache-Control"] = "no-cache"
+        return res
+
+    @app.get("/offline")
+    def offline():
+        return render_template("offline.html")
+
+    @app.get("/share")
+    def share():
+        """Androidin jakovalikon kohde: poimii YouTube-linkin jaetusta tekstistä."""
+        shared = " ".join(request.args.get(k, "") for k in ("url", "text", "title"))
+        url = extract_youtube_url(shared)
+        if url:
+            return redirect(url_for("index", url=url))
+        return redirect(url_for("index", error="Jaetusta sisällöstä ei löytynyt YouTube-linkkiä."))
 
     @app.post("/api/jobs")
     def create_job():

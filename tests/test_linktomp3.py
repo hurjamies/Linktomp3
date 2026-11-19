@@ -3,7 +3,8 @@ import time
 import pytest
 
 import linktomp3.web as web
-from linktomp3.core import ConversionError, Mp3Result, download_mp3, is_youtube_url, safe_filename
+from linktomp3.core import (ConversionError, Mp3Result, download_mp3, extract_youtube_url,
+                            is_youtube_url, safe_filename)
 
 
 @pytest.mark.parametrize("url", [
@@ -24,6 +25,17 @@ def test_valid_youtube_urls(url):
 ])
 def test_invalid_urls(url):
     assert not is_youtube_url(url)
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("Katso tämä! https://youtu.be/abc123?si=xyz", "https://youtu.be/abc123?si=xyz"),
+    ("(https://www.youtube.com/watch?v=abc).", "https://www.youtube.com/watch?v=abc"),
+    ("https://example.com/a https://m.youtube.com/watch?v=b", "https://m.youtube.com/watch?v=b"),
+    ("ei linkkiä", None),
+    ("", None),
+])
+def test_extract_youtube_url(text, expected):
+    assert extract_youtube_url(text) == expected
 
 
 def test_safe_filename():
@@ -87,6 +99,26 @@ def test_web_error_flow(client):
     data = _wait(client, res.get_json()["id"])
     assert data["status"] == "error" and "saatavilla" in data["error"]
     assert client.get(f"/download/{data['id']}").status_code == 404
+
+
+def test_pwa_files(client):
+    m = client.get("/manifest.webmanifest")
+    assert m.status_code == 200 and m.mimetype == "application/manifest+json"
+    data = m.get_json(force=True)
+    assert data["display"] == "standalone" and data["share_target"]["action"] == "/share"
+    for icon in data["icons"]:
+        assert client.get(icon["src"]).status_code == 200
+    sw = client.get("/sw.js")
+    assert sw.status_code == 200 and "javascript" in sw.mimetype
+    assert client.get("/offline").status_code == 200
+
+
+def test_share_target(client):
+    res = client.get("/share", query_string={"text": "Katso https://youtu.be/abc?si=1"})
+    assert res.status_code == 302
+    assert "url=https" in res.headers["Location"] and "youtu.be" in res.headers["Location"]
+    res = client.get("/share", query_string={"text": "pelkkää tekstiä"})
+    assert res.status_code == 302 and "error=" in res.headers["Location"]
 
 
 def test_web_validation(client):

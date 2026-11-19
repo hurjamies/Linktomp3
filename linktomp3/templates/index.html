@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Linktomp3</title>
+  <meta name="theme-color" content="#e0312b">
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
   <style>
     :root {
       --bg: #f4f4f6; --card: #ffffff; --text: #1c1c22; --muted: #6b6b76;
@@ -36,6 +40,16 @@
       border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
     }
     input[type=url] { flex: 1 1 260px; min-width: 0; }
+    input[type=url], select, button, a.btn { min-height: 48px; }
+    button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    button.secondary:hover { background: var(--bg); }
+    @media (max-width: 480px) {
+      body { place-items: start center; padding-top: 24px; }
+      main { padding: 22px 18px; }
+      .row > button { flex: 1 1 0; }
+      input[type=url] { flex-basis: 100%; font-size: 16px; }
+      a.btn { width: 100%; text-align: center; }
+    }
     input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
     button, a.btn {
       font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 8px;
@@ -68,6 +82,7 @@
     <div class="row">
       <input id="url" name="url" type="url" required autocomplete="off"
              placeholder="https://www.youtube.com/watch?v=...">
+      <button id="paste" type="button" class="secondary" hidden>Liitä</button>
       <button id="go" type="submit">Muunna</button>
     </div>
     <div class="options">
@@ -138,8 +153,40 @@
     go.disabled = false;
   }
 
-  form.addEventListener("submit", async (e) => {
+  // "Liitä"-painike leikepöydältä (toimii https:llä ja localhostissa, esim. Termux)
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    $("paste").hidden = false;
+    $("paste").addEventListener("click", async () => {
+      try {
+        const text = (await navigator.clipboard.readText()).trim();
+        const m = text.match(/https?:\/\/\S+/);
+        $("url").value = m ? m[0] : text;
+      } catch (_) {
+        $("url").focus();
+      }
+    });
+  }
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
+    start();
+  });
+
+  // Androidin jakotoiminto ohjaa tänne muodossa /?url=... – aloitetaan heti.
+  const params = new URLSearchParams(location.search);
+  if (params.get("error")) show(params.get("error"), "err");
+  if (params.get("url")) {
+    $("url").value = params.get("url");
+    start();
+  }
+  if (params.toString()) history.replaceState(null, "", "/");
+
+  async function start() {
+    if (!$("url").value.trim()) return $("url").focus();
     go.disabled = true;
     done.style.display = "none";
     show("Haetaan videon tietoja...");
@@ -156,7 +203,7 @@
     } catch (err) {
       finish(err.message, "err");
     }
-  });
+  }
 </script>
 </body>
 </html>

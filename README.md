@@ -11,6 +11,51 @@ että komentoriviversio.
 > Lataa vain sisältöä, johon sinulla on oikeus (esim. oma materiaali tai vapaasti
 > lisensoitu sisältö). YouTuben käyttöehdot ja tekijänoikeudet koskevat myös latauksia.
 
+## Android-puhelin (Termux)
+
+Ohjelma toimii kokonaan puhelimessa, tietokonetta ei tarvita.
+
+### Asennus (kerran)
+
+1. Asenna **Termux** F-Droidista: <https://f-droid.org/packages/com.termux/>
+   (Play Kaupan Termux on vanhentunut, älä käytä sitä.)
+   Valinnaisesti samasta paikasta myös **Termux:API** (ilmoitukset) ja **Termux:Widget** (kotinäytön pikakuvake).
+2. Avaa Termux ja kirjoita (tai liitä) tämä rivi:
+
+   ```bash
+   pkg install -y git && git clone https://github.com/hurjamies/Linktomp3 && bash Linktomp3/android/install.sh
+   ```
+
+   Hyväksy tallennuslupa, kun puhelin kysyy sitä. Asennus kestää muutaman minuutin.
+   Jos repositorio on yksityinen, git kysyy GitHub-käyttäjätunnusta ja salasanaksi
+   [henkilökohtaista tunnusta (token)](https://github.com/settings/tokens).
+
+### Käyttö
+
+**Tapa 1: jakaminen (helpoin).** Avaa video YouTube-sovelluksessa, valitse **Jaa** ja sitten **Termux**.
+mp3 tallentuu kansioon **Music/Linktomp3**, josta musiikkisovellukset löytävät sen.
+
+**Tapa 2: oma sovellus kotinäytöllä.** Kirjoita Termuxissa `linktomp3-web`, jolloin Chrome avautuu.
+Valitse Chromen valikosta **Asenna sovellus** (tai **Lisää aloitusnäytölle**). Sen jälkeen:
+
+- Linktomp3 avautuu omana sovelluksenaan kotinäytöltä.
+- Linktomp3 näkyy YouTuben jakovalikossa, ja jaettu linkki muunnetaan heti.
+- Valmis mp3 tallentuu **Lataukset**-kansioon.
+
+Palvelimen on oltava käynnissä Termuxissa (`linktomp3-web` tai Termux:Widgetin pikakuvake **Linktomp3**).
+Jos se ei ole käynnissä, sovellus näyttää ohjeen sen käynnistämiseen.
+
+**Asetukset:** tallennuskansion ja laadun voi vaihtaa tiedostossa `~/.config/linktomp3.conf`.
+
+**Päivitys:** `bash ~/Linktomp3/android/install.sh` (päivittää myös yt-dlp:n).
+
+**Jos muunnos keskeytyy näytön sammuessa,** poista Termuxilta akunsäästö
+(Asetukset → Sovellukset → Termux → Akku → Ei rajoituksia).
+
+> Vaihtoehto: voit ajaa ohjelmaa myös tietokoneella (`HOST=0.0.0.0 python -m linktomp3.web`) ja avata
+> puhelimen selaimessa `http://<tietokoneen-IP>:5000`. Asennus kotinäytölle ja jakovalikko vaativat
+> kuitenkin https:n tai localhostin, joten Termux-tapa on suositeltavin.
+
 ## Vaatimukset
 
 - Python 3.9 tai uudempi

@@ -47,6 +47,15 @@ def is_youtube_url(url: str) -> bool:
     return (parsed.hostname or "").lower() in YOUTUBE_HOSTS
 
 
+def extract_youtube_url(text: str) -> Optional[str]:
+    """Etsii tekstistä ensimmäisen YouTube-linkin (esim. jaetusta viestistä)."""
+    for candidate in re.findall(r"https?://[^\s<>\"']+", text or ""):
+        candidate = candidate.rstrip(").,;!?")
+        if is_youtube_url(candidate):
+            return candidate
+    return None
+
+
 def safe_filename(name: str, max_len: int = 150) -> str:
     """Siivoaa tiedostonimestä merkit, jotka eivät kelpaa käyttöjärjestelmille."""
     name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", name)

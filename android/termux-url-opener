@@ -1,0 +1,57 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Linktomp3 – Termuxin jakotoiminto.
+# Kun linkki jaetaan Termuxiin (Jaa -> Termux), Termux ajaa tämän skriptin ja antaa
+# linkin ensimmäisenä argumenttina. YouTube-linkit muunnetaan mp3:ksi.
+
+set -o pipefail
+CONF="$HOME/.config/linktomp3.conf"
+LINKTOMP3_DIR="$HOME/storage/shared/Music/Linktomp3"
+LINKTOMP3_BITRATE=192
+# shellcheck disable=SC1090
+[ -f "$CONF" ] && . "$CONF"
+
+shared="${1:-}"
+url="$(python -c 'import sys; from linktomp3 import extract_youtube_url as e; print(e(sys.argv[1]) or "")' "$shared" 2>/dev/null)"
+
+notify() {
+  # Ilmoitus vaatii Termux:API-sovelluksen ja paketin termux-api (valinnainen).
+  command -v termux-notification >/dev/null || return 0
+  timeout 10 termux-notification --id linktomp3 --title "Linktomp3" --content "$1" >/dev/null 2>&1 || true
+}
+
+if [ -z "$url" ]; then
+  echo "Jaettu sisältö ei ole YouTube-linkki:"
+  echo "  $shared"
+  echo
+  read -rp "Paina Enter sulkeaksesi..." _
+  exit 1
+fi
+
+echo "Linktomp3"
+echo "Tallennetaan kansioon: ${LINKTOMP3_DIR#$HOME/storage/shared/}"
+echo
+mkdir -p "$LINKTOMP3_DIR"
+command -v termux-wake-lock >/dev/null && termux-wake-lock
+
+log="${TMPDIR:-/tmp}/linktomp3-$$.log"
+if python -m linktomp3 "$url" -o "$LINKTOMP3_DIR" -b "$LINKTOMP3_BITRATE" 2>&1 | tee "$log"; then
+  file="$(sed -n 's/^  Valmis: //p' "$log" | tail -1)"
+  if [ -n "$file" ] && command -v termux-media-scan >/dev/null; then
+    timeout 10 termux-media-scan "$file" >/dev/null 2>&1 || true
+  fi
+  notify "Valmis: $(basename "${file:-mp3}")"
+  status=0
+  echo
+  echo "Valmis! Ikkuna sulkeutuu hetken kuluttua."
+  sleep 3
+else
+  notify "Muunnos epäonnistui"
+  status=1
+  echo
+  echo "Jos virhe toistuu, päivitä yt-dlp:  pip install -U yt-dlp"
+  read -rp "Paina Enter sulkeaksesi..." _
+fi
+
+rm -f "$log"
+command -v termux-wake-unlock >/dev/null && termux-wake-unlock
+exit $status
