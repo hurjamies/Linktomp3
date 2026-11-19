@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linktomp3"
+version = "1.0.0"
+description = "Muuntaa YouTube-linkit ladattaviksi mp3-tiedostoiksi"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["yt-dlp>=2025.1.1", "Flask>=3.0"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+linktomp3 = "linktomp3.cli:main"
+linktomp3-web = "linktomp3.web:main"
+
+[tool.setuptools]
+packages = ["linktomp3"]
+
+[tool.setuptools.package-data]
+linktomp3 = ["templates/*.html"]
