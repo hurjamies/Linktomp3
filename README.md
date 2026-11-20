@@ -11,6 +11,19 @@ että komentoriviversio.
 > Lataa vain sisältöä, johon sinulla on oikeus (esim. oma materiaali tai vapaasti
 > lisensoitu sisältö). YouTuben käyttöehdot ja tekijänoikeudet koskevat myös latauksia.
 
+## Windows-sovellus (työpöydän kuvake)
+
+Kloonaa repo ja aja kerran:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\install.ps1
+```
+
+Skripti asentaa tarvittaessa ffmpegin, luo virtuaaliympäristön ja tekee **Linktomp3**-pikakuvakkeen
+työpöydälle ja Käynnistä-valikkoon. Kuvake avaa ohjelman omaan ikkunaansa (Edge/Chrome-sovellustila);
+valmiit mp3:t tallentuvat **Lataukset**-kansioon. Kun ikkunan sulkee, ohjelma sammuu kokonaan.
+Loki: `%LOCALAPPDATA%\Linktomp3\linktomp3.log`.
+
 ## Android-puhelin (Termux)
 
 Ohjelma toimii kokonaan puhelimessa, tietokonetta ei tarvita.
