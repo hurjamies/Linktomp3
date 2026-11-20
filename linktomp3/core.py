@@ -101,15 +101,56 @@ def download_mp3(
         "logger": _SilentLogger(),  # virheet näytetään ConversionErrorin kautta
         "noplaylist": True,  # vain yksittäinen video, vaikka linkissä olisi &list=
         "noprogress": True,
+        "retries": 5,
+        "fragment_retries": 5,
     }
+    runtimes = _js_runtimes()
+    if runtimes:
+        # Ilman JS-ajoympäristöä YouTube palauttaa usein vain rajoitettuja
+        # muotoja, joiden lataus voi kaatua virheeseen "HTTP Error 403".
+        base_opts["js_runtimes"] = runtimes
 
-    # 1) Haetaan tiedot ensin, jotta pituus voidaan tarkistaa ennen latausta.
-    try:
-        with yt_dlp.YoutubeDL(base_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-    except yt_dlp.utils.DownloadError as exc:
-        raise ConversionError(_clean_error(exc)) from exc
+    # Tiedot haetaan ja ääni ladataan SAMALLA YoutubeDL-istunnolla: YouTuben
+    # latauslinkit on sidottu istuntoon (evästeet, asiakasprofiili), ja uudella
+    # istunnolla ladattaessa palvelin vastaa usein "HTTP Error 403: Forbidden".
+    with tempfile.TemporaryDirectory(prefix=".linktomp3-", dir=out_dir) as tmp:
+        tmp = Path(tmp)
+        opts = {
+            **base_opts,
+            "format": "bestaudio/best",
+            "outtmpl": str(tmp / "audio.%(ext)s"),
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": bitrate,
+                },
+                {"key": "FFmpegMetadata", "add_metadata": True},
+            ],
+        }
+        if progress:
+            opts["progress_hooks"] = [progress]
 
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                # 1) Tiedot ensin, jotta pituus voidaan tarkistaa ennen latausta.
+                info = ydl.extract_info(url, download=False)
+                title, duration = _check_info(info, max_duration)
+                # 2) Paras ääniraita ladataan ja muunnetaan mp3:ksi.
+                ydl.process_ie_result(info, download=True)
+        except yt_dlp.utils.DownloadError as exc:
+            raise ConversionError(_clean_error(exc)) from exc
+
+        produced = tmp / "audio.mp3"
+        if not produced.exists():
+            raise ConversionError("Muunnos epäonnistui: mp3-tiedostoa ei syntynyt.")
+        final = _unique_path(out_dir / f"{safe_filename(title)}.mp3")
+        shutil.move(str(produced), final)
+    return Mp3Result(path=final, title=title, duration=duration)
+
+
+def _check_info(info: Optional[dict], max_duration: Optional[int]) -> tuple:
+    """Tarkistaa videon tiedot ennen latausta; palauttaa (otsikko, kesto)."""
     if info is None:
         raise ConversionError("Videon tietoja ei saatu haettua.")
     if info.get("_type") == "playlist":
@@ -123,45 +164,21 @@ def download_mp3(
             f"Video on liian pitkä ({_fmt_time(duration)}). "
             f"Enimmäispituus on {_fmt_time(max_duration)}."
         )
-
-    title = info.get("title") or "audio"
-
-    # 2) Ladataan paras ääniraita väliaikaiskansioon ja muunnetaan mp3:ksi.
-    with tempfile.TemporaryDirectory(prefix=".linktomp3-", dir=out_dir) as tmp:
-        produced = _download_audio(info, Path(tmp), bitrate, base_opts, progress)
-        final = _unique_path(out_dir / f"{safe_filename(title)}.mp3")
-        shutil.move(str(produced), final)
-    return Mp3Result(path=final, title=title, duration=duration)
+    return info.get("title") or "audio", duration
 
 
-def _download_audio(info: dict, tmp: Path, bitrate: str, base_opts: dict,
-                    progress: Optional[Callable[[dict], None]]) -> Path:
-    opts = {
-        **base_opts,
-        "format": "bestaudio/best",
-        "outtmpl": str(tmp / "audio.%(ext)s"),
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": bitrate,
-            },
-            {"key": "FFmpegMetadata", "add_metadata": True},
-        ],
-    }
-    if progress:
-        opts["progress_hooks"] = [progress]
+def _js_runtimes() -> dict:
+    """Palauttaa koneelta löytyvät JavaScript-ajoympäristöt yt-dlp:n muodossa.
 
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.process_ie_result(info, download=True)
-    except yt_dlp.utils.DownloadError as exc:
-        raise ConversionError(_clean_error(exc)) from exc
-
-    produced = tmp / "audio.mp3"
-    if not produced.exists():
-        raise ConversionError("Muunnos epäonnistui: mp3-tiedostoa ei syntynyt.")
-    return produced
+    yt-dlp tarvitsee JS-ajoympäristön (deno, node, bun tai quickjs) YouTuben
+    allekirjoitushaasteiden ratkaisemiseen.
+    """
+    found = {}
+    for name, exe in (("deno", "deno"), ("node", "node"), ("bun", "bun"), ("quickjs", "qjs")):
+        path = shutil.which(exe)
+        if path:
+            found[name] = {"path": path}
+    return found
 
 
 class _SilentLogger:

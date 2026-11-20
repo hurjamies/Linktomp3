@@ -24,7 +24,7 @@ fi
 
 say "Päivitetään pakettilistat ja asennetaan Python ja ffmpeg (voi kestää muutaman minuutin)"
 yes | pkg update -y || true
-pkg install -y python python-pip ffmpeg git
+pkg install -y python python-pip ffmpeg git nodejs-lts
 
 if [ -d "$APP_DIR/.git" ]; then
   say "Haetaan uusin versio"
@@ -33,7 +33,7 @@ fi
 
 say "Asennetaan Linktomp3 ja yt-dlp"
 # Termuxissa pipiä itseään ei saa päivittää, joten päivitetään vain paketit.
-pip install --upgrade --disable-pip-version-check yt-dlp flask
+pip install --upgrade --disable-pip-version-check yt-dlp yt-dlp-ejs flask
 pip install --upgrade --disable-pip-version-check --no-deps "$APP_DIR"
 
 say "Annetaan Termuxille lupa tallentaa puhelimen muistiin"

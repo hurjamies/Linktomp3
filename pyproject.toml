@@ -8,7 +8,7 @@ version = "1.1.0"
 description = "Muuntaa YouTube-linkit ladattaviksi mp3-tiedostoiksi"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = ["yt-dlp>=2025.1.1", "Flask>=3.0"]
+dependencies = ["yt-dlp[default]>=2026.10.26", "Flask>=3.0"]
 
 [project.optional-dependencies]
 test = ["pytest"]
